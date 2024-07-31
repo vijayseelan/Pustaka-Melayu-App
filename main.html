@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pustaka Melayu</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #45a049;
+            --background-color: #e0e5ec;
+            --text-color: #4A5568;
+            --card-bg: #ffffff;
+            --input-bg: #e0e5ec;
+            --shadow-color: #babecc;
+            --highlight-color: #ffffff;
+        }
+    
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+    
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+    
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 9px 9px 16px rgba(163,177,198,0.6), -9px -9px 16px rgba(255,255,255, 0.5);
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow: hidden; /* Ensure content stays within the card */
+        }
+    
+        .header-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+    
+        h1, h2, h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+    
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+    
+        h2 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+    
+        #logout-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+    
+        #logout-btn:hover {
+            background-color: #d32f2f;
+        }
+    
+        .flex-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+    
+        .half-width {
+            flex: 1;
+        }
+    
+        select, input, textarea {
+            width: calc(100% - 40px);
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 20px; /* Rounded corners */
+            font-size: 16px;
+            background: var(--input-bg);
+            box-shadow: inset 2px 2px 5px var(--shadow-color), inset -5px -5px 10px var(--highlight-color);
+            box-sizing: border-box;
+        }
+    
+        .teacher-cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+    
+        .teacher-card {
+            flex: 1;
+        }
+    
+        .student-list {
+            list-style-type: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    
+        .student-list li {
+            cursor: pointer;
+            padding: 10px;
+            margin-bottom: 5px;
+            background-color: var(--input-bg);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            box-shadow: -2px -2px 5px var(--highlight-color), 2px 2px 5px var(--shadow-color);
+        }
+    
+        .student-list li:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+    
+        .search-container {
+            position: relative;
+            max-width: calc(100% - 40px); /* Ensure the search container doesn't exceed the card's width */
+            margin: 0 auto;
+        }
+    
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-color);
+        }
+    
+        button {
+            display: inline-block;
+            width: 100%;
+            padding: 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 20px; /* Rounded corners */
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+            box-shadow: -5px -5px 10px var(--highlight-color), 5px 5px 10px var(--shadow-color);
+        }
+    
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+    
+        button:active {
+            box-shadow: inset 1px 1px 2px var(--shadow-color), inset -1px -1px 2px var(--highlight-color);
+        }
+    
+        .progress-bar {
+            width: 100%;
+            background-color: var(--input-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 20px;
+            box-shadow: inset 2px 2px 5px var(--shadow-color), inset -5px -5px 10px var(--highlight-color);
+        }
+    
+        .progress {
+            width: 0%;
+            height: 20px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            transition: width 0.5s ease;
+        }
+    
+        .difficult-words {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    
+        .difficult-word {
+            display: inline-flex;
+            align-items: center;
+            background-color: var(--input-bg);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: -2px -2px 5px var(--highlight-color), 2px 2px 5px var(--shadow-color);
+        }
+    
+        .difficult-word:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+    
+        .speaker-icon {
+            margin-left: 10px;
+            cursor: pointer;
+        }
+    
+        #reading-content {
+            line-height: 1.8;
+            font-size: 18px;
+        }
+    
+        #reading-content span {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 2px 5px;
+            border-radius: 5px;
+        }
+    
+        #reading-content span:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+    
+        .date-container {
+            position: relative;
+            max-width: calc(100% - 40px); /* Ensure the date container doesn't exceed the card's width */
+            margin: 0 auto;
+        }
+    
+        .calendar-icon {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+        }
+    
+        .teacher-only, .student-only {
+            display: none;
+            max-width: 100%; /* Ensure the teacher/student-specific sections don't exceed the card's width */
+        }
+    
+        #teacher-comment {
+            resize: vertical;
+            min-height: 100px;
+            max-width: calc(100% - 40px); /* Ensure the comment box doesn't exceed the card's width */
+            margin: 0 auto;
+        }
+    
+        #teacher-comment-history {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    
+        #teacher-comment-history p {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--shadow-color);
+        }
+    
+        #teacher-comment-history p:last-child {
+            border-bottom: none;
+        }
+    </style>
+    
+    
+</head>
+<body>
+    <div class="container">
+        <div class="card header-card">
+            <h1><i class="fas fa-book-reader"></i> Pustaka Melayu</h1>
+            <div id="user-info"></div>
+            <button id="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Log Keluar</button>
+        </div>
+        
+        <div class="flex-container">
+            <div class="card half-width">
+                <h2><i class="fas fa-layer-group"></i> Pilih Tahap:</h2>
+                <select id="level-selector" onchange="loadMaterials()">
+                    <option value="mudah">Mudah</option>
+                    <option value="sederhana">Sederhana</option>
+                    <option value="sukar">Sukar</option>
+                </select>
+            </div>
+            
+            <div class="card half-width">
+                <h2><i class="fas fa-book"></i> Pilih Bahan Bacaan:</h2>
+                <select id="material-selector" onchange="loadReadingMaterial()">
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+        </div>
+        
+        <div class="teacher-cards">
+            <div id="teacher-view" class="card teacher-card teacher-only" style="display: none;">
+                <h2><i class="fas fa-users"></i> Senarai Pelajar</h2>
+                <div class="search-container">
+                    <input type="text" id="student-search" placeholder="Cari pelajar...">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+                <ul id="student-list" class="student-list"></ul>
+            </div>
+
+            <div class="card teacher-card teacher-only" style="display: none;">
+                <h2><i class="fas fa-star"></i> Penilaian Guru:</h2>
+                <div class="date-container">
+                    <input type="date" id="evaluation-date">
+                    <i class="fas fa-calendar-alt calendar-icon" onclick="document.getElementById('evaluation-date').focus();"></i>
+                </div>
+                <select id="evaluation-level">
+                    <option value="1">1 - Lemah</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5 - Sederhana</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10 - Cemerlang</option>
+                </select>
+                <button onclick="saveProgress()"><i class="fas fa-save"></i> Simpan Penilaian</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2><i class="fas fa-tasks"></i> Kemajuan:</h2>
+            <div class="progress-bar">
+                <div id="progress" class="progress">0%</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div id="reading-content"></div>
+        </div>
+        
+        <div class="card">
+            <h3><i class="fas fa-exclamation-circle"></i> Kata-Kata Sukar:</h3>
+            <div id="difficult-words-list" class="difficult-words"></div>
+        </div>
+
+        <div class="card teacher-only" style="display: none;">
+            <h2><i class="fas fa-comment"></i> Komen Guru:</h2>
+            <textarea id="teacher-comment" rows="4" cols="50"></textarea>
+            <button onclick="saveTeacherComment()">Simpan Komen</button>
+            <div id="teacher-comment-history"></div>
+        </div>
+
+        <div class="card student-only" style="display: none;">
+            <h2><i class="fas fa-comment"></i> Komen Guru:</h2>
+            <div id="student-teacher-comment"></div>
+        </div>
+
+        <div class="card">
+            <h2><i class="fas fa-chart-line"></i> Graf Prestasi:</h2>
+            <select id="chart-material-selector" onchange="updateChartMaterial()">
+                <!-- Options will be populated dynamically -->
+            </select>
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+      // Firebase configuration
+      const firebaseConfig = {
+            apiKey: "AIzaSyBVBxgwHvPRUsMiDggziYZnLa5JuYTFI1E",
+            authDomain: "lms-bm-reading.firebaseapp.com",
+            databaseURL: "https://lms-bm-reading-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "lms-bm-reading",
+            storageBucket: "lms-bm-reading.appspot.com",
+            messagingSenderId: "388779759262",
+            appId: "1:388779759262:web:955d777ed608a2c1118d8f",
+            measurementId: "G-44730J0JV0"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+
+         let currentUser = null;
+        let currentRole = null;
+        let selectedStudent = null;
+        let currentMaterial = null;
+        let currentSchoolCode = null;
+
+        // Reading materials
+        const materials = {
+            mudah: [
+                "Kucing Saya", "Sekolah Saya", "Rumah Saya", "Kawan Saya", "Bunga Raya", "Hobi Saya"
+            ],
+            sederhana: [
+                "Hari Raya Aidilfitri", "Makanan Kegemaran Saya", "Hobi Saya", "Sukan di Malaysia", "Pasar Malam"
+            ],
+            sukar: [
+                "Pemanasan Global", "Teknologi Moden", "Sejarah Malaysia", "Kepentingan Pendidikan", "Alam Sekitar"
+            ]
+        };
+
+        // Check authentication state
+        auth.onAuthStateChanged(function(user) {
+            if (user) {
+                currentUser = user;
+                currentSchoolCode = localStorage.getItem('schoolCode');
+                currentRole = localStorage.getItem('userRole');
+                setupUIForRole();
+                loadUserInfo();
+            } else {
+                window.location.href = 'index.html'; // Redirect to login if not authenticated
+            }
+        });
+
+        function setupUIForRole() {
+            if (currentRole === 'teacher') {
+                document.querySelectorAll('.teacher-only').forEach(el => el.style.display = 'block');
+                document.querySelectorAll('.student-only').forEach(el => el.style.display = 'none');
+                loadStudentList();
+            } else {
+                document.querySelectorAll('.teacher-only').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.student-only').forEach(el => el.style.display = 'block');
+                loadTeacherComments(currentUser.uid); // Load comments for the logged-in student
+            }
+            loadMaterials();
+            loadProgress();
+        }
+
+        function loadUserInfo() {
+            database.ref(`schools/${currentSchoolCode}/users/${currentUser.uid}`).once('value').then(function(snapshot) {
+                const userData = snapshot.val();
+                if (userData) {
+                    document.getElementById('user-info').textContent = `Selamat datang, ${userData.name || 'User'} (${userData.role || 'Unknown Role'})`;
+                } else {
+                    console.error("User data not found");
+                    document.getElementById('user-info').textContent = 'Welcome, User';
+                }
+            }).catch(error => {
+                console.error("Error loading user info:", error);
+                document.getElementById('user-info').textContent = 'Welcome, User';
+            });
+        }
+
+        function loadStudentList() {
+            const studentList = document.getElementById('student-list');
+            studentList.innerHTML = '';
+
+            database.ref(`schools/${currentSchoolCode}/users`).orderByChild('role').equalTo('student').once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    studentList.innerHTML = '<li>No students found</li>';
+                    return;
+                }
+                snapshot.forEach((childSnapshot) => {
+                    const studentData = childSnapshot.val();
+                    const li = document.createElement('li');
+                    li.textContent = studentData.name || 'Unknown Student';
+                    li.onclick = () => selectStudent(childSnapshot.key, studentData.name);
+                    studentList.appendChild(li);
+                });
+            }).catch(error => {
+                console.error("Error loading student list:", error);
+                studentList.innerHTML = '<li>Error loading students</li>';
+            });
+        }
+
+        function selectStudent(studentId, studentName) {
+            selectedStudent = studentId;
+            showCustomAlert(`Pelajar dipilih: ${studentName}`);
+            loadStudentProgress(studentId);
+            loadStudentDifficultWords(studentId);
+            loadTeacherComments(studentId);
+        }
+
+        function loadMaterials() {
+            const level = document.getElementById('level-selector').value;
+            const materialSelector = document.getElementById('material-selector');
+            const chartMaterialSelector = document.getElementById('chart-material-selector');
+            materialSelector.innerHTML = '';
+            chartMaterialSelector.innerHTML = '';
+            materials[level].forEach(material => {
+                const option = document.createElement('option');
+                option.value = material;
+                option.textContent = material;
+                materialSelector.appendChild(option);
+                chartMaterialSelector.appendChild(option.cloneNode(true));
+            });
+            loadReadingMaterial();
+            updateChartMaterial();
+        }
+
+        function loadReadingMaterial() {
+            currentMaterial = document.getElementById('material-selector').value;
+            const readingContent = document.getElementById('reading-content');
+            readingContent.innerHTML = `<h3>${currentMaterial}</h3>`;
+            
+            // Add your reading material content here
+            let text = "Ini adalah contoh teks untuk " + currentMaterial + ". Klik pada kata-kata untuk menambah ke senarai kata sukar.";
+            
+            const words = text.split(" ");
+            words.forEach(word => {
+                const span = document.createElement('span');
+                span.textContent = word + " ";
+                span.onclick = function() {
+                    addDifficultWord(word);
+                };
+                readingContent.appendChild(span);
+            });
+
+            loadDifficultWords();
+            loadProgress();
+        }
+
+        function addDifficultWord(word) {
+            const difficultWordsList = document.getElementById('difficult-words-list');
+            if ([...difficultWordsList.children].some(el => el.textContent.includes(word))) {
+                return;
+            }
+            const wordElement = document.createElement('div');
+            wordElement.className = 'difficult-word';
+            wordElement.textContent = word;
+            wordElement.onclick = function() {
+                removeDifficultWord(wordElement);
+            };
+
+            const speakerIcon = document.createElement('span');
+            speakerIcon.className = 'speaker-icon';
+            speakerIcon.innerHTML = '🔊';
+            speakerIcon.onclick = function(event) {
+                event.stopPropagation();
+                speakWord(word);
+            };
+
+            wordElement.appendChild(speakerIcon);
+            difficultWordsList.appendChild(wordElement);
+
+            saveDifficultWord(word);
+        }
+
+        function removeDifficultWord(element) {
+            const word = element.textContent.replace('🔊', '').trim();
+            element.remove();
+            removeDifficultWordFromDatabase(word);
+        }
+
+        function saveDifficultWord(word) {
+            const userId = selectedStudent || currentUser.uid;
+            database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`).push(word);
+        }
+
+        function removeDifficultWordFromDatabase(word) {
+            const userId = selectedStudent || currentUser.uid;
+            database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`)
+                .orderByValue().equalTo(word).once('value', snapshot => {
+                    snapshot.forEach(child => {
+                        child.ref.remove();
+                    });
+                });
+        }
+
+        function loadDifficultWords() {
+            const difficultWordsList = document.getElementById('difficult-words-list');
+            difficultWordsList.innerHTML = '';
+
+            const userId = selectedStudent || currentUser.uid;
+            database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`).once('value', (snapshot) => {
+                snapshot.forEach((childSnapshot) => {
+                    addDifficultWord(childSnapshot.val());
+                });
+            });
+        }
+
+        function speakWord(word) {
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'ms-MY';
+            speechSynthesis.speak(utterance);
+        }
+
+        function saveProgress() {
+            if (currentRole !== 'teacher' || !selectedStudent) {
+                showCustomAlert('Hanya guru boleh menyimpan penilaian untuk pelajar.');
+                return;
+            }
+
+            const level = document.getElementById('level-selector').value;
+            const date = document.getElementById('evaluation-date').value;
+            const evaluation = document.getElementById('evaluation-level').value;
+
+            if (!date || !evaluation) {
+                showCustomAlert('Sila isi tarikh dan tahap penilaian.');
+                return;
+            }
+
+            const progressData = {
+                level: level,
+                date: date,
+                evaluation: parseInt(evaluation)
+            };
+
+            database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/progress/${currentMaterial}`).set(progressData)
+                .then(() => {
+                    showCustomAlert('Kemajuan pelajar disimpan.');
+                    updateProgress(evaluation);
+                })
+                .catch((error) => {
+                    showCustomAlert('Gagal menyimpan kemajuan: ' + error.message);
+                });
+
+            // Save to history for chart
+            database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/history/${currentMaterial}`).push(progressData)
+                .then(() => {
+                    updateChartMaterial();
+                })
+                .catch((error) => {
+                    console.error('Gagal menyimpan sejarah:', error);
+                });
+        }
+
+        function loadProgress() {
+            const userId = selectedStudent || currentUser.uid;
+            database.ref(`schools/${currentSchoolCode}/users/${userId}/progress/${currentMaterial}`).once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    document.getElementById('level-selector').value = data.level;
+                    if (currentRole === 'teacher') {
+                        document.getElementById('evaluation-date').value = data.date;
+                        document.getElementById('evaluation-level').value = data.evaluation;
+                    }
+                    updateProgress(data.evaluation);
+                } else {
+                    resetProgress();
+                }
+            });
+        }
+
+        function resetProgress() {
+            document.getElementById('progress').style.width = '0%';
+            document.getElementById('progress').textContent = '0%';
+        }
+
+        function updateProgress(evaluation) {
+            const progress = document.getElementById('progress');
+            const percentage = (evaluation / 10) * 100;
+            progress.style.width = percentage + '%';
+            progress.textContent = percentage.toFixed(0) + '%';
+        }
+
+        function saveTeacherComment() {
+            if (!selectedStudent) {
+                showCustomAlert('Sila pilih pelajar dahulu.');
+                return;
+            }
+            const comment = document.getElementById('teacher-comment').value.trim();
+            if (comment === '') {
+                showCustomAlert('Sila masukkan komen.');
+                return;
+            }
+            const commentData = {
+                comment: comment,
+                teacherId: currentUser.uid,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}`).push(commentData)
+                .then(() => {
+                    showCustomAlert('Komen disimpan.');
+                    document.getElementById('teacher-comment').value = '';
+                    loadTeacherComments(selectedStudent);
+                })
+                .catch((error) => {
+                   showCustomAlert('Ralat: ' + error.message);
+                });
+        }
+
+        function loadTeacherComments(userId) {
+            const commentContainer = currentRole === 'teacher' ? document.getElementById('teacher-comment-history') : document.getElementById('student-teacher-comment');
+            commentContainer.innerHTML = '';
+            console.log('Loading comments for user:', userId, 'Material:', currentMaterial); // Debug log
+
+            database.ref(`schools/${currentSchoolCode}/users/${userId}/teacherComments/${currentMaterial}`)
+                .orderByChild('timestamp')
+                .once('value', (snapshot) => {
+                    const comments = [];
+                    snapshot.forEach((childSnapshot) => {
+                        comments.unshift({
+                            id: childSnapshot.key,
+                            ...childSnapshot.val()
+                        });
+                    });
+
+                    comments.forEach((comment, index) => {
+                        const commentElement = document.createElement('p');
+                        const date = new Date(comment.timestamp);
+                        const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+                        commentElement.textContent = `${index + 1}. ${comment.comment} (${formattedDate})`;
+                        commentContainer.appendChild(commentElement);
+                    });
+                    console.log('Comments loaded:', comments); // Debug log
+                })
+                .catch((error) => {
+                    console.error('Error loading comments:', error); // Debug log
+                });
+        }
+
+        function updateChartMaterial() {
+            const userId = selectedStudent || currentUser.uid;
+            const material = document.getElementById('chart-material-selector').value;
+            updatePerformanceChart(userId, material);
+        }
+
+        function updatePerformanceChart(userId, material) {
+            database.ref(`schools/${currentSchoolCode}/users/${userId}/history/${material}`).orderByChild('date').limitToLast(10).once('value', (snapshot) => {
+                const data = [];
+                snapshot.forEach((childSnapshot) => {
+                    const progressData = childSnapshot.val();
+                    data.push({
+                        date: progressData.date,
+                        evaluation: progressData.evaluation
+                    });
+                });
+
+                renderChart(data, material);
+            });
+        }
+
+        function renderChart(data, material) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            if (window.performanceChart instanceof Chart) {
+                window.performanceChart.destroy();
+            }
+
+            window.performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(item => item.date),
+                    datasets: [{
+                        label: `Penilaian - ${material}`,
+                        data: data.map(item => item.evaluation),
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        function showCustomAlert(message) {
+            const alertBox = document.createElement('div');
+            alertBox.style.position = 'fixed';
+            alertBox.style.bottom = '20px';
+            alertBox.style.left = '50%';
+            alertBox.style.transform = 'translateX(-50%)';
+            alertBox.style.backgroundColor = 'var(--primary-color)';
+            alertBox.style.color = 'white';
+            alertBox.style.padding = '10px 20px';
+            alertBox.style.borderRadius = '5px';
+            alertBox.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.1)';
+            alertBox.style.zIndex = '1000';
+            alertBox.textContent = message;
+
+            document.body.appendChild(alertBox);
+
+            setTimeout(() => {
+                alertBox.remove();
+            }, 3000);
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                showCustomAlert('Log keluar berjaya!');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('schoolCode');
+                window.location.href = 'index.html';
+            }).catch((error) => {
+                showCustomAlert('Ralat: ' + error.message);
+            });
+        }
+
+        function loadStudentProgress(studentId) {
+            database.ref(`schools/${currentSchoolCode}/users/${studentId}/progress/${currentMaterial}`).once('value', (snapshot) => {
+                const progress = snapshot.val();
+                if (progress) {
+                    updateProgress(progress.evaluation);
+                } else {
+                    resetProgress();
+                }
+            });
+        }
+
+        function loadStudentDifficultWords(studentId) {
+            const difficultWordsList = document.getElementById('difficult-words-list');
+            difficultWordsList.innerHTML = '';
+
+            database.ref(`schools/${currentSchoolCode}/users/${studentId}/difficultWords/${currentMaterial}`).once('value', (snapshot) => {
+                snapshot.forEach((childSnapshot) => {
+                    const word = childSnapshot.val();
+                    addDifficultWord(word);
+                });
+            });
+        }
+
+        // Initialize the application when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMaterials();
+            updateChartMaterial();
+        });
+
+        // Error handling
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('An error occurred:', error);
+            showCustomAlert('Ralat telah berlaku. Sila cuba lagi.');
+            return true;
+        };
+
+        // Firebase Realtime Database error handling
+        database.ref('.info/connected').on('value', function(snap) {
+            if (snap.val() === true) {
+                console.log('connected');
+            } else {
+                console.log('not connected');
+                showCustomAlert('Sambungan terputus. Sila periksa sambungan internet anda.');
+            }
+        });
+
+        // Add event listeners
+        document.getElementById('logout-btn').addEventListener('click', logout);
+        document.getElementById('level-selector').addEventListener('change', loadMaterials);
+        document.getElementById('material-selector').addEventListener('change', loadReadingMaterial);
+        document.getElementById('chart-material-selector').addEventListener('change', updateChartMaterial);
+
+        if (currentRole === 'teacher') {
+            document.querySelector('button[onclick="saveProgress()"]').addEventListener('click', saveProgress);
+            document.querySelector('button[onclick="saveTeacherComment()"]').addEventListener('click', saveTeacherComment);
+        }
+
+       
+        // Function to refresh student list
+        function refreshStudentList() {
+            if (currentRole === 'teacher') {
+                loadStudentList();
+            }
+        }
+
+        // Add refresh button for student list
+        if (currentRole === 'teacher') {
+            const refreshBtn = document.createElement('button');
+            refreshBtn.textContent = 'Muat Semula Senarai Pelajar';
+            refreshBtn.onclick = refreshStudentList;
+            document.getElementById('student-list').parentNode.insertBefore(refreshBtn, document.getElementById('student-list'));
+        }
+
+        // Function to handle Firebase connection state
+        function handleConnectionState() {
+            const connectedRef = database.ref('.info/connected');
+            connectedRef.on('value', (snap) => {
+                if (snap.val() === true) {
+                    console.log('Connected to Firebase');
+                } else {
+                    console.log('Disconnected from Firebase');
+                    showCustomAlert('Sambungan terputus. Menyambung semula...');
+                }
+            });
+        }
+
+        // Call this function to start monitoring connection state
+        handleConnectionState();
+
+    </script>
+</body>
+</html>

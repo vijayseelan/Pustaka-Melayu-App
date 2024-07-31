@@ -1,0 +1,38 @@
+{
+  "schools": {
+    "KBD3083": {
+      "users": {
+        "42psAi9C6CWCAVOJs2Ei2svseCf2": {
+          "email": "vjclan@gmail.com",
+          "name": "Vijayaseelan",
+          "role": "teacher",
+          "schoolCode": "KBD3083",
+          "teacherComments": {
+            "Kucing Saya": {
+              "commentId1": {
+                "comment": "Excellent understanding of the material!",
+                "teacherId": "42psAi9C6CWCAVOJs2Ei2svseCf2",
+                "timestamp": 1645030197000
+              }
+            }
+          }
+        },
+        "VPb0ouOcDLZyjL9Bo0lM9rlzPyT2": {
+          "email": "cekgu05@gmail.com",
+          "name": "Mogan",
+          "role": "student",
+          "schoolCode": "KBD3083",
+          "teacherComments": {
+            "Kucing Saya": {
+              "commentId2": {
+                "comment": "Needs improvement in understanding the text.",
+                "teacherId": "42psAi9C6CWCAVOJs2Ei2svseCf2",
+                "timestamp": 1645030197001
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
