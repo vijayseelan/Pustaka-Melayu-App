@@ -664,6 +664,7 @@ function loadReadingMaterial() {
 
             loadDifficultWords();
             loadProgress();
+            loadTeacherComments(selectedStudent || currentUser.uid); // Add this line
         } else {
             readingContent.innerHTML += '<p>Content not found for this material.</p>';
         }
@@ -819,7 +820,8 @@ function saveTeacherComment() {
     const commentData = {
         comment: comment,
         teacherId: currentUser.uid,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        material: currentMaterial // Add this line
     };
     
     const newCommentRef = database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}`).push();
@@ -844,10 +846,13 @@ function loadTeacherComments(userId) {
         .once('value', (snapshot) => {
             const comments = [];
             snapshot.forEach((childSnapshot) => {
-                comments.unshift({
-                    id: childSnapshot.key,
-                    ...childSnapshot.val()
-                });
+                const commentData = childSnapshot.val();
+                if (commentData.material === currentMaterial) { // Add this check
+                    comments.unshift({
+                        id: childSnapshot.key,
+                        ...commentData
+                    });
+                }
             });
 
             comments.forEach((comment, index) => {
