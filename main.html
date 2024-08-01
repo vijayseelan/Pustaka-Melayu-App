@@ -421,6 +421,7 @@
 
     <script>
        // Firebase configuration
+// Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyBVBxgwHvPRUsMiDggziYZnLa5JuYTFI1E",
     authDomain: "lms-bm-reading.firebaseapp.com",
@@ -611,7 +612,6 @@ function removeStudent(studentId, studentName) {
     }
 }
 
-// Modified to use JSON loading
 async function loadMaterials() {
     const level = document.getElementById('level-selector').value;
     const materialSelector = document.getElementById('material-selector');
@@ -638,9 +638,17 @@ async function loadMaterials() {
         console.error('Error in loadMaterials:', error);
         showCustomAlert('Error loading materials. Please try again later.');
     }
+
+    materialSelector.addEventListener('change', () => {
+        loadReadingMaterial();
+        if (currentRole === 'teacher' && selectedStudent) {
+            loadTeacherComments(selectedStudent);
+        } else if (currentRole === 'student') {
+            loadTeacherComments(currentUser.uid);
+        }
+    });
 }
 
-// Modified to use JSON loading
 function loadReadingMaterial() {
     const level = document.getElementById('level-selector').value;
     currentMaterial = document.getElementById('material-selector').value;
@@ -848,7 +856,7 @@ function loadTeacherComments(userId) {
                 });
             });
 
-            comments.forEach((comment, index) => {
+            comments.forEach((comment) => {
                 const commentElement = document.createElement('div');
                 commentElement.id = `comment-${comment.id}`;
                 const date = new Date(comment.timestamp);
@@ -1079,6 +1087,7 @@ database.ref('.info/connected').on('value', function(snap) {
 
 // Call this function to start monitoring connection state
 handleConnectionState();
-    </script>
+
+     </script>
 </body>
 </html>
