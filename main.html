@@ -322,6 +322,144 @@
         #teacher-comment-history p:last-child {
             border-bottom: none;
         }
+
+        .comment-card {
+        background-color: var(--card-bg);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .comment-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .comment-teacher {
+        color: var(--primary-color);
+        margin: 0 0 10px 0;
+    }
+
+    .comment-text {
+        font-size: 1em;
+        margin: 0 0 10px 0;
+    }
+
+    .comment-date {
+        font-size: 0.8em;
+        color: #666;
+        margin: 0;
+    }
+
+    .comment-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 10px;
+    }
+
+    .comment-actions button {
+        margin-left: 10px;
+        padding: 5px 10px;
+        font-size: 0.9em;
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+        }
+    }
+
+    .pulsating {
+        animation: pulse 2s infinite;
+    }
+
+    .badge-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .badge-option {
+        background-color: var(--card-bg);
+        border-radius: 20px;
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .badge-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .awarded-badge {
+        font-size: 2em;
+        margin-right: 10px;
+        animation: badgePulse 2s infinite;
+    }
+
+    .awarded-badge-container {
+        display: flex;
+        align-items: center;
+        margin-top: 10px;
+    }
+
+    .badge-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .badge-name {
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .badge-awarded-by {
+        font-size: 0.8em;
+        color: #666;
+        margin: 0;
+    }
+
+    @keyframes badgePulse {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.1);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    @keyframes badgeAward {
+        0% {
+            transform: scale(0);
+            opacity: 0;
+        }
+        80% {
+            transform: scale(1.2);
+            opacity: 1;
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .comment-card .awarded-badge {
+        animation: badgeAward 0.5s ease-out;
+    }
+
     </style>
 </head>
 <body>
@@ -437,6 +575,14 @@ firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 const auth = firebase.auth();
 
+const badges = [
+    { id: 'star', name: 'Bintang Cemerlang', icon: '⭐' },
+    { id: 'rocket', name: 'Pelancaran Hebat', icon: '🚀' },
+    { id: 'brain', name: 'Minda Bijak', icon: '🧠' },
+    { id: 'fire', name: 'Semangat Berkobar', icon: '🔥' },
+    { id: 'crown', name: 'Juara Bahasa', icon: '👑' }
+];
+
 let currentUser = null;
 let currentRole = null;
 let selectedStudent = null;
@@ -467,6 +613,22 @@ auth.onAuthStateChanged(function(user) {
         window.location.href = 'index.html'; // Redirect to login if not authenticated
     }
 });
+
+function renderBadgeOptions() {
+    const badgeContainer = document.createElement('div');
+    badgeContainer.className = 'badge-options';
+    badgeContainer.innerHTML = '<h4>Anugerah Lencana:</h4>';
+
+    badges.forEach(badge => {
+        const badgeElement = document.createElement('span');
+        badgeElement.className = 'badge-option';
+        badgeElement.innerHTML = `${badge.icon} ${badge.name}`;
+        badgeElement.onclick = () => awardBadge(badge.id);
+        badgeContainer.appendChild(badgeElement);
+    });
+
+    return badgeContainer;
+}
 
 function setupUIForRole() {
     if (currentRole === 'teacher') {
@@ -817,23 +979,31 @@ function saveTeacherComment() {
         showCustomAlert('Sila masukkan komen.');
         return;
     }
-    const commentData = {
-        comment: comment,
-        teacherId: currentUser.uid,
-        timestamp: firebase.database.ServerValue.TIMESTAMP,
-        material: currentMaterial // Add this line
-    };
     
-    const newCommentRef = database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}`).push();
-    newCommentRef.set(commentData)
-        .then(() => {
-            showCustomAlert('Komen disimpan.');
-            document.getElementById('teacher-comment').value = '';
-            loadTeacherComments(selectedStudent);
-        })
-        .catch((error) => {
-            showCustomAlert('Ralat: ' + error.message);
-        });
+    // Get the teacher's name
+    database.ref(`schools/${currentSchoolCode}/users/${currentUser.uid}`).once('value', (snapshot) => {
+        const teacherData = snapshot.val();
+        const teacherName = teacherData.name || 'Unknown Teacher';
+        
+        const commentData = {
+            comment: comment,
+            teacherId: currentUser.uid,
+            teacherName: teacherName, // Add this line
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            material: currentMaterial
+        };
+        
+        const newCommentRef = database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}`).push();
+        newCommentRef.set(commentData)
+            .then(() => {
+                showCustomAlert('Komen disimpan.');
+                document.getElementById('teacher-comment').value = '';
+                loadTeacherComments(selectedStudent);
+            })
+            .catch((error) => {
+                showCustomAlert('Ralat: ' + error.message);
+            });
+    });
 }
 
 function loadTeacherComments(userId) {
@@ -841,13 +1011,17 @@ function loadTeacherComments(userId) {
     commentContainer.innerHTML = '';
     console.log('Loading comments for user:', userId, 'Material:', currentMaterial);
 
+    if (currentRole === 'teacher') {
+        commentContainer.appendChild(renderBadgeOptions());
+    }
+
     database.ref(`schools/${currentSchoolCode}/users/${userId}/teacherComments/${currentMaterial}`)
         .orderByChild('timestamp')
         .once('value', (snapshot) => {
             const comments = [];
             snapshot.forEach((childSnapshot) => {
                 const commentData = childSnapshot.val();
-                if (commentData.material === currentMaterial) { // Add this check
+                if (commentData.material === currentMaterial) {
                     comments.unshift({
                         id: childSnapshot.key,
                         ...commentData
@@ -858,15 +1032,35 @@ function loadTeacherComments(userId) {
             comments.forEach((comment, index) => {
                 const commentElement = document.createElement('div');
                 commentElement.id = `comment-${comment.id}`;
+                commentElement.className = 'comment-card pulsating';
                 const date = new Date(comment.timestamp);
                 const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
                 
+                let badgeHtml = '';
+                if (comment.badge) {
+                    const badge = badges.find(b => b.id === comment.badge);
+                    badgeHtml = `
+                        <div class="awarded-badge-container">
+                            <div class="awarded-badge" title="${badge.name}">${badge.icon}</div>
+                            <div class="badge-info">
+                                <p class="badge-name">${badge.name}</p>
+                                <p class="badge-awarded-by">Dianugerahkan oleh: ${comment.teacherName}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 commentElement.innerHTML = `
+                    <h4 class="comment-teacher">${comment.teacherName}</h4>
                     <p class="comment-text">${comment.comment}</p>
                     <p class="comment-date">${formattedDate}</p>
+                    ${badgeHtml}
                 `;
                 
                 if (currentRole === 'teacher') {
+                    const actionButtons = document.createElement('div');
+                    actionButtons.className = 'comment-actions';
+                    
                     const editBtn = document.createElement('button');
                     editBtn.textContent = 'Edit';
                     editBtn.onclick = () => editComment(comment.id);
@@ -875,8 +1069,9 @@ function loadTeacherComments(userId) {
                     deleteBtn.textContent = 'Padam';
                     deleteBtn.onclick = () => deleteComment(comment.id);
                     
-                    commentElement.appendChild(editBtn);
-                    commentElement.appendChild(deleteBtn);
+                    actionButtons.appendChild(editBtn);
+                    actionButtons.appendChild(deleteBtn);
+                    commentElement.appendChild(actionButtons);
                 }
                 
                 commentContainer.appendChild(commentElement);
@@ -887,6 +1082,51 @@ function loadTeacherComments(userId) {
             console.error('Error loading comments:', error);
         });
 }
+
+function awardBadge(badgeId) {
+    if (!selectedStudent) {
+        showCustomAlert('Sila pilih pelajar dahulu.');
+        return;
+    }
+
+    const badge = badges.find(b => b.id === badgeId);
+    
+    // Get the teacher's name
+    database.ref(`schools/${currentSchoolCode}/users/${currentUser.uid}`).once('value', (snapshot) => {
+        const teacherData = snapshot.val();
+        const teacherName = teacherData.name || 'Unknown Teacher';
+
+        const commentData = {
+            comment: `Tahniah! Anda telah dianugerahkan lencana "${badge.name}"!`,
+            teacherId: currentUser.uid,
+            teacherName: teacherName, // Use the retrieved teacher name
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            material: currentMaterial,
+            badge: badgeId
+        };
+
+        const newCommentRef = database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}`).push();
+        newCommentRef.set(commentData)
+            .then(() => {
+                showCustomAlert(`Lencana ${badge.name} telah dianugerahkan!`);
+                loadTeacherComments(selectedStudent);
+            })
+            .catch((error) => {
+                showCustomAlert('Ralat: ' + error.message);
+            });
+    });
+}
+
+    const newCommentRef = database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}`).push();
+    newCommentRef.set(commentData)
+        .then(() => {
+            showCustomAlert(`Lencana ${badge.name} telah dianugerahkan!`);
+            loadTeacherComments(selectedStudent);
+        })
+        .catch((error) => {
+            showCustomAlert('Ralat: ' + error.message);
+        });
+    
 
 function editComment(commentId) {
     const commentText = document.querySelector(`#comment-${commentId} .comment-text`).textContent;
