@@ -613,31 +613,44 @@
             }
         }
 
-        function loadMaterials() {
-            const level = document.getElementById('level-selector').value;
-            const materialSelector = document.getElementById('material-selector');
-            const chartMaterialSelector = document.getElementById('chart-material-selector');
-            materialSelector.innerHTML = '';
-            chartMaterialSelector.innerHTML = '';
+        async function loadMaterials() {
+    const level = document.getElementById('level-selector').value;
+    const materialSelector = document.getElementById('material-selector');
+    const chartMaterialSelector = document.getElementById('chart-material-selector');
+    materialSelector.innerHTML = '';
+    chartMaterialSelector.innerHTML = '';
+
+    try {
+        const materials = await loadReadingMaterialsFromJSON();
+        if (materials[level]) {
             materials[level].forEach(material => {
                 const option = document.createElement('option');
-                option.value = material;
-                option.textContent = material;
+                option.value = material.title;
+                option.textContent = material.title;
                 materialSelector.appendChild(option);
                 chartMaterialSelector.appendChild(option.cloneNode(true));
             });
             loadReadingMaterial();
             updateChartMaterial();
+        } else {
+            showCustomAlert('No materials found for the selected level.');
         }
+    } catch (error) {
+        console.error('Error in loadMaterials:', error);
+        showCustomAlert('Error loading materials. Please try again later.');
+    }
+}
 
         function loadReadingMaterial() {
-            currentMaterial = document.getElementById('material-selector').value;
-            const readingContent = document.getElementById('reading-content');
-            readingContent.innerHTML = `<h3>${currentMaterial}</h3>`;
-            
-            let text = "Ini adalah contoh teks untuk " + currentMaterial + ". Klik pada kata-kata untuk menambah ke senarai kata sukar.";
-            
-            const words = text.split(" ");
+    const level = document.getElementById('level-selector').value;
+    currentMaterial = document.getElementById('material-selector').value;
+    const readingContent = document.getElementById('reading-content');
+    readingContent.innerHTML = '<h3>' + currentMaterial + '</h3>';
+    
+    loadReadingMaterialsFromJSON().then(materials => {
+        const material = materials[level].find(m => m.title === currentMaterial);
+        if (material) {
+            const words = material.content.split(" ");
             words.forEach(word => {
                 const span = document.createElement('span');
                 span.textContent = word + " ";
@@ -649,7 +662,14 @@
 
             loadDifficultWords();
             loadProgress();
+        } else {
+            readingContent.innerHTML += '<p>Content not found for this material.</p>';
         }
+    }).catch(error => {
+        console.error('Error loading reading material:', error);
+        readingContent.innerHTML += '<p>Error loading content. Please try again later.</p>';
+    });
+}
 
         function addDifficultWord(word) {
             const difficultWordsList = document.getElementById('difficult-words-list');
