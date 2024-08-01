@@ -420,200 +420,199 @@
     </div>
 
     <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBVBxgwHvPRUsMiDggziYZnLa5JuYTFI1E",
-            authDomain: "lms-bm-reading.firebaseapp.com",
-            databaseURL: "https://lms-bm-reading-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "lms-bm-reading",
-            storageBucket: "lms-bm-reading.appspot.com",
-            messagingSenderId: "388779759262",
-            appId: "1:388779759262:web:955d777ed608a2c1118d8f",
-            measurementId: "G-44730J0JV0"
+       // Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyBVBxgwHvPRUsMiDggziYZnLa5JuYTFI1E",
+    authDomain: "lms-bm-reading.firebaseapp.com",
+    databaseURL: "https://lms-bm-reading-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "lms-bm-reading",
+    storageBucket: "lms-bm-reading.appspot.com",
+    messagingSenderId: "388779759262",
+    appId: "1:388779759262:web:955d777ed608a2c1118d8f",
+    measurementId: "G-44730J0JV0"
+};
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const auth = firebase.auth();
+
+let currentUser = null;
+let currentRole = null;
+let selectedStudent = null;
+let currentMaterial = null;
+let currentSchoolCode = null;
+let studentsData = [];
+
+// New function to load reading materials from JSON
+function loadReadingMaterialsFromJSON() {
+    return fetch('reading_materials.json')
+        .then(response => response.json())
+        .catch(error => {
+            console.error('Error loading reading materials:', error);
+            showCustomAlert('Error loading reading materials. Please try again later.');
+            return {};
+        });
+}
+
+// Check authentication state
+auth.onAuthStateChanged(function(user) {
+    if (user) {
+        currentUser = user;
+        currentSchoolCode = localStorage.getItem('schoolCode');
+        currentRole = localStorage.getItem('userRole');
+        setupUIForRole();
+        loadUserInfo();
+    } else {
+        window.location.href = 'index.html'; // Redirect to login if not authenticated
+    }
+});
+
+function setupUIForRole() {
+    if (currentRole === 'teacher') {
+        document.querySelectorAll('.teacher-only').forEach(el => el.style.display = 'block');
+        document.querySelectorAll('.student-only').forEach(el => el.style.display = 'none');
+        loadStudentList();
+        setupSearchFunctionality();
+    } else {
+        document.querySelectorAll('.teacher-only').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.student-only').forEach(el => el.style.display = 'block');
+        loadTeacherComments(currentUser.uid); // Load comments for the logged-in student
+    }
+    loadMaterials();
+    loadProgress();
+    setupEventListeners();
+}
+
+function setupEventListeners() {
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+
+    const saveProgressBtn = document.getElementById('save-progress-btn');
+    if (saveProgressBtn && currentRole === 'teacher') {
+        saveProgressBtn.addEventListener('click', saveProgress);
+    }
+
+    const saveCommentBtn = document.getElementById('save-comment-btn');
+    if (saveCommentBtn && currentRole === 'teacher') {
+        saveCommentBtn.addEventListener('click', saveTeacherComment);
+    }
+
+    document.getElementById('level-selector').addEventListener('change', loadMaterials);
+    document.getElementById('material-selector').addEventListener('change', loadReadingMaterial);
+    document.getElementById('chart-material-selector').addEventListener('change', updateChartMaterial);
+}
+
+function loadUserInfo() {
+    database.ref(`schools/${currentSchoolCode}/users/${currentUser.uid}`).once('value').then(function(snapshot) {
+        const userData = snapshot.val();
+        if (userData) {
+            document.getElementById('user-info').textContent = `Selamat datang, ${userData.name || 'User'} (${userData.role || 'Unknown Role'})`;
+        } else {
+            console.error("User data not found");
+            document.getElementById('user-info').textContent = 'Welcome, User';
+        }
+    }).catch(error => {
+        console.error("Error loading user info:", error);
+        document.getElementById('user-info').textContent = 'Welcome, User';
+    });
+}
+
+function loadStudentList() {
+    const studentList = document.getElementById('student-list');
+    studentList.innerHTML = '';
+    studentsData = [];
+
+    database.ref(`schools/${currentSchoolCode}/users`).orderByChild('role').equalTo('student').once('value', (snapshot) => {
+        if (!snapshot.exists()) {
+            studentList.innerHTML = '<li>No students found</li>';
+            return;
+        }
+        snapshot.forEach((childSnapshot) => {
+            const studentData = childSnapshot.val();
+            studentsData.push({id: childSnapshot.key, name: studentData.name || 'Unknown Student'});
+        });
+        renderStudentList(studentsData);
+    }).catch(error => {
+        console.error("Error loading student list:", error);
+        studentList.innerHTML = '<li>Error loading students</li>';
+    });
+}
+
+function renderStudentList(students) {
+    const studentList = document.getElementById('student-list');
+    studentList.innerHTML = '';
+    students.forEach(student => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <div class="student-name">
+                ${student.name}
+                <button class="remove-student-btn" data-student-id="${student.id}">Buang</button>
+            </div>
+        `;
+        li.querySelector('.student-name').onclick = () => selectStudent(student.id, student.name);
+        li.querySelector('.remove-student-btn').onclick = (e) => {
+            e.stopPropagation();
+            removeStudent(student.id, student.name);
         };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const auth = firebase.auth();
+        studentList.appendChild(li);
+    });
+}
 
-        let currentUser = null;
-        let currentRole = null;
-        let selectedStudent = null;
-        let currentMaterial = null;
-        let currentSchoolCode = null;
-        let studentsData = [];
+function filterStudentList(searchQuery) {
+    const filteredStudents = studentsData.filter(student => 
+        student.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    if (filteredStudents.length === 0) {
+        document.getElementById('student-list').innerHTML = '<li>No students found</li>';
+    } else {
+        renderStudentList(filteredStudents);
+    }
+}
 
-        // Reading materials
-        const materials = {
-            mudah: [
-                "Kucing Saya", "Sekolah Saya", "Rumah Saya", "Kawan Saya", "Bunga Raya", "Hobi Saya"
-            ],
-            sederhana: [
-                "Hari Raya Aidilfitri", "Makanan Kegemaran Saya", "Hobi Saya", "Sukan di Malaysia", "Pasar Malam"
-            ],
-            sukar: [
-                "Pemanasan Global", "Teknologi Moden", "Sejarah Malaysia", "Kepentingan Pendidikan", "Alam Sekitar"
-            ]
-        };
+function setupSearchFunctionality() {
+    const studentSearchInput = document.getElementById('student-search');
+    const searchIcon = document.querySelector('.search-icon');
 
-        // Check authentication state
-        auth.onAuthStateChanged(function(user) {
-            if (user) {
-                currentUser = user;
-                currentSchoolCode = localStorage.getItem('schoolCode');
-                currentRole = localStorage.getItem('userRole');
-                setupUIForRole();
-                loadUserInfo();
-            } else {
-                window.location.href = 'index.html'; // Redirect to login if not authenticated
-            }
+    if (studentSearchInput && searchIcon) {
+        studentSearchInput.addEventListener('input', (event) => {
+            filterStudentList(event.target.value);
         });
 
-        function setupUIForRole() {
-            if (currentRole === 'teacher') {
-                document.querySelectorAll('.teacher-only').forEach(el => el.style.display = 'block');
-                document.querySelectorAll('.student-only').forEach(el => el.style.display = 'none');
-                loadStudentList();
-                setupSearchFunctionality();
-            } else {
-                document.querySelectorAll('.teacher-only').forEach(el => el.style.display = 'none');
-                document.querySelectorAll('.student-only').forEach(el => el.style.display = 'block');
-                loadTeacherComments(currentUser.uid); // Load comments for the logged-in student
+        searchIcon.addEventListener('click', () => {
+            filterStudentList(studentSearchInput.value);
+        });
+    } else {
+        console.error('Search input or icon not found');
+    }
+}
+
+function selectStudent(studentId, studentName) {
+    selectedStudent = studentId;
+    showCustomAlert(`Pelajar dipilih: ${studentName}`);
+    loadStudentProgress(studentId);
+    loadStudentDifficultWords(studentId);
+    loadTeacherComments(studentId);
+}
+
+function removeStudent(studentId, studentName) {
+    if (confirm(`Adakah anda pasti mahu membuang pelajar ${studentName} dari kelas?`)) {
+        database.ref(`schools/${currentSchoolCode}/users/${studentId}`).remove()
+        .then(() => {
+            showCustomAlert(`Pelajar ${studentName} dibuang dari kelas.`);
+            if (selectedStudent === studentId) {
+                selectedStudent = null;
             }
-            loadMaterials();
-            loadProgress();
-            setupEventListeners();
-        }
+            loadStudentList();
+        }).catch((error) => {
+            showCustomAlert('Ralat: ' + error.message);
+        });
+    }
+}
 
-        function setupEventListeners() {
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', logout);
-            }
-
-            const saveProgressBtn = document.getElementById('save-progress-btn');
-            if (saveProgressBtn && currentRole === 'teacher') {
-                saveProgressBtn.addEventListener('click', saveProgress);
-            }
-
-            const saveCommentBtn = document.getElementById('save-comment-btn');
-            if (saveCommentBtn && currentRole === 'teacher') {
-                saveCommentBtn.addEventListener('click', saveTeacherComment);
-            }
-
-            document.getElementById('level-selector').addEventListener('change', loadMaterials);
-            document.getElementById('material-selector').addEventListener('change', loadReadingMaterial);
-            document.getElementById('chart-material-selector').addEventListener('change', updateChartMaterial);
-        }
-
-        function loadUserInfo() {
-            database.ref(`schools/${currentSchoolCode}/users/${currentUser.uid}`).once('value').then(function(snapshot) {
-                const userData = snapshot.val();
-                if (userData) {
-                    document.getElementById('user-info').textContent = `Selamat datang, ${userData.name || 'User'} (${userData.role || 'Unknown Role'})`;
-                } else {
-                    console.error("User data not found");
-                    document.getElementById('user-info').textContent = 'Welcome, User';
-                }
-            }).catch(error => {
-                console.error("Error loading user info:", error);
-                document.getElementById('user-info').textContent = 'Welcome, User';
-            });
-        }
-
-        function loadStudentList() {
-            const studentList = document.getElementById('student-list');
-            studentList.innerHTML = '';
-            studentsData = [];
-
-            database.ref(`schools/${currentSchoolCode}/users`).orderByChild('role').equalTo('student').once('value', (snapshot) => {
-                if (!snapshot.exists()) {
-                    studentList.innerHTML = '<li>No students found</li>';
-                    return;
-                }
-                snapshot.forEach((childSnapshot) => {
-                    const studentData = childSnapshot.val();
-                    studentsData.push({id: childSnapshot.key, name: studentData.name || 'Unknown Student'});
-                });
-                renderStudentList(studentsData);
-            }).catch(error => {
-                console.error("Error loading student list:", error);
-                studentList.innerHTML = '<li>Error loading students</li>';
-            });
-        }
-
-        function renderStudentList(students) {
-            const studentList = document.getElementById('student-list');
-            studentList.innerHTML = '';
-            students.forEach(student => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <div class="student-name">
-                        ${student.name}
-                        <button class="remove-student-btn" data-student-id="${student.id}">Buang</button>
-                    </div>
-                `;
-                li.querySelector('.student-name').onclick = () => selectStudent(student.id, student.name);
-                li.querySelector('.remove-student-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    removeStudent(student.id, student.name);
-                };
-                studentList.appendChild(li);
-            });
-        }
-
-        function filterStudentList(searchQuery) {
-            const filteredStudents = studentsData.filter(student => 
-                student.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-            
-            if (filteredStudents.length === 0) {
-                document.getElementById('student-list').innerHTML = '<li>No students found</li>';
-            } else {
-                renderStudentList(filteredStudents);
-            }
-        }
-
-        function setupSearchFunctionality() {
-            const studentSearchInput = document.getElementById('student-search');
-            const searchIcon = document.querySelector('.search-icon');
-
-            if (studentSearchInput && searchIcon) {
-                studentSearchInput.addEventListener('input', (event) => {
-                    filterStudentList(event.target.value);
-                });
-
-                searchIcon.addEventListener('click', () => {
-                    filterStudentList(studentSearchInput.value);
-                });
-            } else {
-                console.error('Search input or icon not found');
-            }
-        }
-
-        function selectStudent(studentId, studentName) {
-            selectedStudent = studentId;
-            showCustomAlert(`Pelajar dipilih: ${studentName}`);
-            loadStudentProgress(studentId);
-            loadStudentDifficultWords(studentId);
-            loadTeacherComments(studentId);
-        }
-
-        function removeStudent(studentId, studentName) {
-            if (confirm(`Adakah anda pasti mahu membuang pelajar ${studentName} dari kelas?`)) {
-                database.ref(`schools/${currentSchoolCode}/users/${studentId}`).remove()
-                .then(() => {
-                    showCustomAlert(`Pelajar ${studentName} dibuang dari kelas.`);
-                    if (selectedStudent === studentId) {
-                        selectedStudent = null;
-                    }
-                    loadStudentList();
-                }).catch((error) => {
-                    showCustomAlert('Ralat: ' + error.message);
-                });
-            }
-        }
-
-        async function loadMaterials() {
+// Modified to use JSON loading
+async function loadMaterials() {
     const level = document.getElementById('level-selector').value;
     const materialSelector = document.getElementById('material-selector');
     const chartMaterialSelector = document.getElementById('chart-material-selector');
@@ -641,11 +640,12 @@
     }
 }
 
-        function loadReadingMaterial() {
+// Modified to use JSON loading
+function loadReadingMaterial() {
     const level = document.getElementById('level-selector').value;
     currentMaterial = document.getElementById('material-selector').value;
     const readingContent = document.getElementById('reading-content');
-    readingContent.innerHTML = '<h3>' + currentMaterial + '</h3>';
+    readingContent.innerHTML = `<h3>${currentMaterial}</h3>`;
     
     loadReadingMaterialsFromJSON().then(materials => {
         const material = materials[level].find(m => m.title === currentMaterial);
@@ -671,414 +671,414 @@
     });
 }
 
-        function addDifficultWord(word) {
-            const difficultWordsList = document.getElementById('difficult-words-list');
-            if ([...difficultWordsList.children].some(el => el.textContent.includes(word))) {
-                return;
-            }
-            const wordElement = document.createElement('div');
-            wordElement.className = 'difficult-word';
-            wordElement.textContent = word;
-            wordElement.onclick = function() {
-                removeDifficultWord(wordElement);
-            };
+function addDifficultWord(word) {
+    const difficultWordsList = document.getElementById('difficult-words-list');
+    if ([...difficultWordsList.children].some(el => el.textContent.includes(word))) {
+        return;
+    }
+    const wordElement = document.createElement('div');
+    wordElement.className = 'difficult-word';
+    wordElement.textContent = word;
+    wordElement.onclick = function() {
+        removeDifficultWord(wordElement);
+    };
 
-            const speakerIcon = document.createElement('span');
-            speakerIcon.className = 'speaker-icon';
-            speakerIcon.innerHTML = '🔊';
-            speakerIcon.onclick = function(event) {
-                event.stopPropagation();
-                speakWord(word);
-            };
+    const speakerIcon = document.createElement('span');
+    speakerIcon.className = 'speaker-icon';
+    speakerIcon.innerHTML = '🔊';
+    speakerIcon.onclick = function(event) {
+        event.stopPropagation();
+        speakWord(word);
+    };
 
-            wordElement.appendChild(speakerIcon);
-            difficultWordsList.appendChild(wordElement);
+    wordElement.appendChild(speakerIcon);
+    difficultWordsList.appendChild(wordElement);
 
-            saveDifficultWord(word);
-        }
+    saveDifficultWord(word);
+}
 
-        function removeDifficultWord(element) {
-            const word = element.textContent.replace('🔊', '').trim();
-            element.remove();
-            removeDifficultWordFromDatabase(word);
-        }
+function removeDifficultWord(element) {
+    const word = element.textContent.replace('🔊', '').trim();
+    element.remove();
+    removeDifficultWordFromDatabase(word);
+}
 
-        function saveDifficultWord(word) {
-            const userId = selectedStudent || currentUser.uid;
-            database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`).push(word);
-        }
+function saveDifficultWord(word) {
+    const userId = selectedStudent || currentUser.uid;
+    database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`).push(word);
+}
 
-        function removeDifficultWordFromDatabase(word) {
-            const userId = selectedStudent || currentUser.uid;
-            database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`)
-                .orderByValue().equalTo(word).once('value', snapshot => {
-                    snapshot.forEach(child => {
-                        child.ref.remove();
-                    });
-                });
-        }
-
-        function loadDifficultWords() {
-            const difficultWordsList = document.getElementById('difficult-words-list');
-            difficultWordsList.innerHTML = '';
-
-            const userId = selectedStudent || currentUser.uid;
-            database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`).once('value', (snapshot) => {
-                snapshot.forEach((childSnapshot) => {
-                    addDifficultWord(childSnapshot.val());
-                });
+function removeDifficultWordFromDatabase(word) {
+    const userId = selectedStudent || currentUser.uid;
+    database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`)
+        .orderByValue().equalTo(word).once('value', snapshot => {
+            snapshot.forEach(child => {
+                child.ref.remove();
             });
-        }
+        });
+}
 
-        function speakWord(word) {
-            const utterance = new SpeechSynthesisUtterance(word);
-            utterance.lang = 'ms-MY';
-            speechSynthesis.speak(utterance);
-        }
+function loadDifficultWords() {
+    const difficultWordsList = document.getElementById('difficult-words-list');
+    difficultWordsList.innerHTML = '';
 
-        function saveProgress() {
-            if (currentRole !== 'teacher' || !selectedStudent) {
-                showCustomAlert('Hanya guru boleh menyimpan penilaian untuk pelajar.');
-                return;
-            }
+    const userId = selectedStudent || currentUser.uid;
+    database.ref(`schools/${currentSchoolCode}/users/${userId}/difficultWords/${currentMaterial}`).once('value', (snapshot) => {
+        snapshot.forEach((childSnapshot) => {
+            addDifficultWord(childSnapshot.val());
+        });
+    });
+}
 
-            const level = document.getElementById('level-selector').value;
-            const date = document.getElementById('evaluation-date').value;
-            const evaluation = document.getElementById('evaluation-level').value;
+function speakWord(word) {
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = 'ms-MY';
+    speechSynthesis.speak(utterance);
+}
 
-            if (!date || !evaluation) {
-                showCustomAlert('Sila isi tarikh dan tahap penilaian.');
-                return;
-            }
+function saveProgress() {
+    if (currentRole !== 'teacher' || !selectedStudent) {
+        showCustomAlert('Hanya guru boleh menyimpan penilaian untuk pelajar.');
+        return;
+    }
 
-            const progressData = {
-                level: level,
-                date: date,
-                evaluation: parseInt(evaluation)
-            };
+    const level = document.getElementById('level-selector').value;
+    const date = document.getElementById('evaluation-date').value;
+    const evaluation = document.getElementById('evaluation-level').value;
 
-            database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/progress/${currentMaterial}`).set(progressData)
-                .then(() => {
-                    showCustomAlert('Kemajuan pelajar disimpan.');
-                    updateProgress(evaluation);
-                })
-                .catch((error) => {
-                    showCustomAlert('Gagal menyimpan kemajuan: ' + error.message);
-                });
+    if (!date || !evaluation) {
+        showCustomAlert('Sila isi tarikh dan tahap penilaian.');
+        return;
+    }
 
-            database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/history/${currentMaterial}`).push(progressData)
-                .then(() => {
-                    updateChartMaterial();
-                })
-                .catch((error) => {
-                    console.error('Gagal menyimpan sejarah:', error);
-                });
-        }
+    const progressData = {
+        level: level,
+        date: date,
+        evaluation: parseInt(evaluation)
+    };
 
-        function loadProgress() {
-            const userId = selectedStudent || currentUser.uid;
-            database.ref(`schools/${currentSchoolCode}/users/${userId}/progress/${currentMaterial}`).once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    document.getElementById('level-selector').value = data.level;
-                    if (currentRole === 'teacher') {
-                        document.getElementById('evaluation-date').value = data.date;
-                        document.getElementById('evaluation-level').value = data.evaluation;
-                    }
-                    updateProgress(data.evaluation);
-                } else {
-                    resetProgress();
-                }
-            });
-        }
+    database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/progress/${currentMaterial}`).set(progressData)
+        .then(() => {
+            showCustomAlert('Kemajuan pelajar disimpan.');
+            updateProgress(evaluation);
+        })
+        .catch((error) => {
+            showCustomAlert('Gagal menyimpan kemajuan: ' + error.message);
+        });
 
-        function resetProgress() {
-            document.getElementById('progress').style.width = '0%';
-            document.getElementById('progress').textContent = '0%';
-        }
-
-        function updateProgress(evaluation) {
-            const progress = document.getElementById('progress');
-            const percentage = (evaluation / 10) * 100;
-            progress.style.width = percentage + '%';
-            progress.textContent = percentage.toFixed(0) + '%';
-        }
-
-        function saveTeacherComment() {
-            if (!selectedStudent) {
-                showCustomAlert('Sila pilih pelajar dahulu.');
-                return;
-            }
-            const comment = document.getElementById('teacher-comment').value.trim();
-            if (comment === '') {
-                showCustomAlert('Sila masukkan komen.');
-                return;
-            }
-            const commentData = {
-                comment: comment,
-                teacherId: currentUser.uid,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            };
-            
-            const newCommentRef = database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}`).push();
-            newCommentRef.set(commentData)
-                .then(() => {
-                    showCustomAlert('Komen disimpan.');
-                    document.getElementById('teacher-comment').value = '';
-                    loadTeacherComments(selectedStudent);
-                })
-                .catch((error) => {
-                    showCustomAlert('Ralat: ' + error.message);
-                });
-        }
-
-        function loadTeacherComments(userId) {
-            const commentContainer = currentRole === 'teacher' ? document.getElementById('teacher-comment-history') : document.getElementById('student-teacher-comment');
-            commentContainer.innerHTML = '';
-            console.log('Loading comments for user:', userId, 'Material:', currentMaterial);
-
-            database.ref(`schools/${currentSchoolCode}/users/${userId}/teacherComments/${currentMaterial}`)
-                .orderByChild('timestamp')
-                .once('value', (snapshot) => {
-                    const comments = [];
-                    snapshot.forEach((childSnapshot) => {
-                        comments.unshift({
-                            id: childSnapshot.key,
-                            ...childSnapshot.val()
-                        });
-                    });
-
-                    comments.forEach((comment, index) => {
-                        const commentElement = document.createElement('div');
-                        commentElement.id = `comment-${comment.id}`;
-                        const date = new Date(comment.timestamp);
-                        const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-                        
-                        commentElement.innerHTML = `
-                            <p class="comment-text">${comment.comment}</p>
-                            <p class="comment-date">${formattedDate}</p>
-                        `;
-                        
-                        if (currentRole === 'teacher') {
-                            const editBtn = document.createElement('button');
-                            editBtn.textContent = 'Edit';
-                            editBtn.onclick = () => editComment(comment.id);
-                            
-                            const deleteBtn = document.createElement('button');
-                            deleteBtn.textContent = 'Padam';
-                            deleteBtn.onclick = () => deleteComment(comment.id);
-                            
-                            commentElement.appendChild(editBtn);
-                            commentElement.appendChild(deleteBtn);
-                        }
-                        
-                        commentContainer.appendChild(commentElement);
-                    });
-                    console.log('Comments loaded:', comments);
-                })
-                .catch((error) => {
-                    console.error('Error loading comments:', error);
-                });
-        }
-
-        function editComment(commentId) {
-            const commentText = document.querySelector(`#comment-${commentId} .comment-text`).textContent;
-            document.getElementById('teacher-comment').value = commentText;
-            document.getElementById('save-comment-btn').onclick = function() {
-                updateComment(commentId);
-            };
-        }
-
-        function updateComment(commentId) {
-            const updatedComment = document.getElementById('teacher-comment').value.trim();
-            if (updatedComment === '') {
-                showCustomAlert('Sila masukkan komen.');
-                return;
-            }
-            
-            database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}/${commentId}`).update({
-                comment: updatedComment,
-                editedAt: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                showCustomAlert('Komen dikemas kini.');
-                document.getElementById('teacher-comment').value = '';
-                document.getElementById('save-comment-btn').onclick = saveTeacherComment;
-                loadTeacherComments(selectedStudent);
-            }).catch((error) => {
-                showCustomAlert('Ralat: ' + error.message);
-            });
-        }
-
-        function deleteComment(commentId) {
-            if (confirm('Adakah anda pasti mahu memadamkan komen ini?')) {
-                database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}/${commentId}`).remove()
-                .then(() => {
-                    showCustomAlert('Komen dipadamkan.');
-                    loadTeacherComments(selectedStudent);
-                }).catch((error) => {
-                    showCustomAlert('Ralat: ' + error.message);
-                });
-            }
-        }
-
-        function updateChartMaterial() {
-            const userId = selectedStudent || currentUser.uid;
-            const material = document.getElementById('chart-material-selector').value;
-            updatePerformanceChart(userId, material);
-        }
-
-        function updatePerformanceChart(userId, material) {
-            database.ref(`schools/${currentSchoolCode}/users/${userId}/history/${material}`).orderByChild('date').limitToLast(10).once('value', (snapshot) => {
-                const data = [];
-                snapshot.forEach((childSnapshot) => {
-                    const progressData = childSnapshot.val();
-                    data.push({
-                        date: progressData.date,
-                        evaluation: progressData.evaluation
-                    });
-                });
-
-                renderChart(data, material);
-            });
-        }
-
-        function renderChart(data, material) {
-            const ctx = document.getElementById('performanceChart').getContext('2d');
-            
-            if (window.performanceChart instanceof Chart) {
-                window.performanceChart.destroy();
-            }
-
-            window.performanceChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.map(item => item.date),
-                    datasets: [{
-                        label: `Penilaian - ${material}`,
-                        data: data.map(item => item.evaluation),
-                        borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 10
-                        }
-                    }
-                }
-            });
-        }
-
-        function showCustomAlert(message) {
-            const alertBox = document.createElement('div');
-            alertBox.style.position = 'fixed';
-            alertBox.style.bottom = '20px';
-            alertBox.style.left = '50%';
-            alertBox.style.transform = 'translateX(-50%)';
-            alertBox.style.backgroundColor = 'var(--primary-color)';
-            alertBox.style.color = 'white';
-            alertBox.style.padding = '10px 20px';
-            alertBox.style.borderRadius = '5px';
-            alertBox.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.1)';
-            alertBox.style.zIndex = '1000';
-            alertBox.textContent = message;
-
-            document.body.appendChild(alertBox);
-
-            setTimeout(() => {
-                alertBox.remove();
-            }, 3000);
-        }
-
-        function logout() {
-            auth.signOut().then(() => {
-                showCustomAlert('Log keluar berjaya!');
-                localStorage.removeItem('userRole');
-                localStorage.removeItem('schoolCode');
-                window.location.href = 'index.html';
-            }).catch((error) => {
-                showCustomAlert('Ralat: ' + error.message);
-            });
-        }
-
-        function loadStudentProgress(studentId) {
-            database.ref(`schools/${currentSchoolCode}/users/${studentId}/progress/${currentMaterial}`).once('value', (snapshot) => {
-                const progress = snapshot.val();
-                if (progress) {
-                    updateProgress(progress.evaluation);
-                } else {
-                    resetProgress();
-                }
-            });
-        }
-
-        function loadStudentDifficultWords(studentId) {
-            const difficultWordsList = document.getElementById('difficult-words-list');
-            difficultWordsList.innerHTML = '';
-
-            database.ref(`schools/${currentSchoolCode}/users/${studentId}/difficultWords/${currentMaterial}`).once('value', (snapshot) => {
-                snapshot.forEach((childSnapshot) => {
-                    const word = childSnapshot.val();
-                    addDifficultWord(word);
-                });
-            });
-        }
-
-        function refreshStudentList() {
-            if (currentRole === 'teacher') {
-                loadStudentList();
-            }
-        }
-
-        function handleConnectionState() {
-            const connectedRef = database.ref('.info/connected');
-            connectedRef.on('value', (snap) => {
-                if (snap.val() === true) {
-                    console.log('Connected to Firebase');
-                } else {
-                    console.log('Disconnected from Firebase');
-                    showCustomAlert('Sambungan terputus. Menyambung semula...');
-                }
-            });
-        }
-
-        // Initialize the application when the DOM is fully loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            loadMaterials();
+    database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/history/${currentMaterial}`).push(progressData)
+        .then(() => {
             updateChartMaterial();
+        })
+        .catch((error) => {
+            console.error('Gagal menyimpan sejarah:', error);
+        });
+}
 
-            // Add refresh button for student list if user is a teacher
+function loadProgress() {
+    const userId = selectedStudent || currentUser.uid;
+    database.ref(`schools/${currentSchoolCode}/users/${userId}/progress/${currentMaterial}`).once('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            document.getElementById('level-selector').value = data.level;
             if (currentRole === 'teacher') {
-                const refreshBtn = document.createElement('button');
-                refreshBtn.textContent = 'Muat Semula Senarai Pelajar';
-                refreshBtn.onclick = refreshStudentList;
-                const studentListContainer = document.getElementById('student-list').parentNode;
-                studentListContainer.insertBefore(refreshBtn, studentListContainer.firstChild);
+                document.getElementById('evaluation-date').value = data.date;
+                document.getElementById('evaluation-level').value = data.evaluation;
             }
+            updateProgress(data.evaluation);
+        } else {
+            resetProgress();
+        }
+    });
+}
+
+function resetProgress() {
+    document.getElementById('progress').style.width = '0%';
+    document.getElementById('progress').textContent = '0%';
+}
+
+function updateProgress(evaluation) {
+    const progress = document.getElementById('progress');
+    const percentage = (evaluation / 10) * 100;
+    progress.style.width = percentage + '%';
+    progress.textContent = percentage.toFixed(0) + '%';
+}
+
+function saveTeacherComment() {
+    if (!selectedStudent) {
+        showCustomAlert('Sila pilih pelajar dahulu.');
+        return;
+    }
+    const comment = document.getElementById('teacher-comment').value.trim();
+    if (comment === '') {
+        showCustomAlert('Sila masukkan komen.');
+        return;
+    }
+    const commentData = {
+        comment: comment,
+        teacherId: currentUser.uid,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+    
+    const newCommentRef = database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}`).push();
+    newCommentRef.set(commentData)
+        .then(() => {
+            showCustomAlert('Komen disimpan.');
+            document.getElementById('teacher-comment').value = '';
+            loadTeacherComments(selectedStudent);
+        })
+        .catch((error) => {
+            showCustomAlert('Ralat: ' + error.message);
+        });
+}
+
+function loadTeacherComments(userId) {
+    const commentContainer = currentRole === 'teacher' ? document.getElementById('teacher-comment-history') : document.getElementById('student-teacher-comment');
+    commentContainer.innerHTML = '';
+    console.log('Loading comments for user:', userId, 'Material:', currentMaterial);
+
+    database.ref(`schools/${currentSchoolCode}/users/${userId}/teacherComments/${currentMaterial}`)
+        .orderByChild('timestamp')
+        .once('value', (snapshot) => {
+            const comments = [];
+            snapshot.forEach((childSnapshot) => {
+                comments.unshift({
+                    id: childSnapshot.key,
+                    ...childSnapshot.val()
+                });
+            });
+
+            comments.forEach((comment, index) => {
+                const commentElement = document.createElement('div');
+                commentElement.id = `comment-${comment.id}`;
+                const date = new Date(comment.timestamp);
+                const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+                
+                commentElement.innerHTML = `
+                    <p class="comment-text">${comment.comment}</p>
+                    <p class="comment-date">${formattedDate}</p>
+                `;
+                
+                if (currentRole === 'teacher') {
+                    const editBtn = document.createElement('button');
+                    editBtn.textContent = 'Edit';
+                    editBtn.onclick = () => editComment(comment.id);
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'Padam';
+                    deleteBtn.onclick = () => deleteComment(comment.id);
+                    
+                    commentElement.appendChild(editBtn);
+                    commentElement.appendChild(deleteBtn);
+                }
+                
+                commentContainer.appendChild(commentElement);
+            });
+            console.log('Comments loaded:', comments);
+        })
+        .catch((error) => {
+            console.error('Error loading comments:', error);
+        });
+}
+
+function editComment(commentId) {
+    const commentText = document.querySelector(`#comment-${commentId} .comment-text`).textContent;
+    document.getElementById('teacher-comment').value = commentText;
+    document.getElementById('save-comment-btn').onclick = function() {
+        updateComment(commentId);
+    };
+}
+
+function updateComment(commentId) {
+    const updatedComment = document.getElementById('teacher-comment').value.trim();
+    if (updatedComment === '') {
+        showCustomAlert('Sila masukkan komen.');
+        return;
+    }
+    
+    database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}/${commentId}`).update({
+        comment: updatedComment,
+        editedAt: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+        showCustomAlert('Komen dikemas kini.');
+        document.getElementById('teacher-comment').value = '';
+        document.getElementById('save-comment-btn').onclick = saveTeacherComment;
+        loadTeacherComments(selectedStudent);
+    }).catch((error) => {
+        showCustomAlert('Ralat: ' + error.message);
+    });
+}
+
+function deleteComment(commentId) {
+    if (confirm('Adakah anda pasti mahu memadamkan komen ini?')) {
+        database.ref(`schools/${currentSchoolCode}/users/${selectedStudent}/teacherComments/${currentMaterial}/${commentId}`).remove()
+        .then(() => {
+            showCustomAlert('Komen dipadamkan.');
+            loadTeacherComments(selectedStudent);
+        }).catch((error) => {
+            showCustomAlert('Ralat: ' + error.message);
+        });
+    }
+}
+
+function updateChartMaterial() {
+    const userId = selectedStudent || currentUser.uid;
+    const material = document.getElementById('chart-material-selector').value;
+    updatePerformanceChart(userId, material);
+}
+
+function updatePerformanceChart(userId, material) {
+    database.ref(`schools/${currentSchoolCode}/users/${userId}/history/${material}`).orderByChild('date').limitToLast(10).once('value', (snapshot) => {
+        const data = [];
+        snapshot.forEach((childSnapshot) => {
+            const progressData = childSnapshot.val();
+            data.push({
+                date: progressData.date,
+                evaluation: progressData.evaluation
+            });
         });
 
-        // Error handling
-        window.onerror = function(message, source, lineno, colno, error) {
-            console.error('An error occurred:', error);
-            showCustomAlert('Ralat telah berlaku. Sila cuba lagi.');
-            return true;
-        };
+        renderChart(data, material);
+    });
+}
 
-        // Firebase Realtime Database error handling
-        database.ref('.info/connected').on('value', function(snap) {
-            if (snap.val() === true) {
-                console.log('connected');
-            } else {
-                console.log('not connected');
-                showCustomAlert('Sambungan terputus. Sila periksa sambungan internet anda.');
+function renderChart(data, material) {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    if (window.performanceChart instanceof Chart) {
+        window.performanceChart.destroy();
+    }
+
+    window.performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(item => item.date),
+            datasets: [{
+                label: `Penilaian - ${material}`,
+                data: data.map(item => item.evaluation),
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10
+                }
             }
-        });
+        }
+    });
+}
 
-        // Call this function to start monitoring connection state
-        handleConnectionState();
+function showCustomAlert(message) {
+    const alertBox = document.createElement('div');
+    alertBox.style.position = 'fixed';
+    alertBox.style.bottom = '20px';
+    alertBox.style.left = '50%';
+    alertBox.style.transform = 'translateX(-50%)';
+    alertBox.style.backgroundColor = 'var(--primary-color)';
+    alertBox.style.color = 'white';
+    alertBox.style.padding = '10px 20px';
+    alertBox.style.borderRadius = '5px';
+    alertBox.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.1)';
+    alertBox.style.zIndex = '1000';
+    alertBox.textContent = message;
+
+    document.body.appendChild(alertBox);
+
+    setTimeout(() => {
+        alertBox.remove();
+    }, 3000);
+}
+
+function logout() {
+    auth.signOut().then(() => {
+        showCustomAlert('Log keluar berjaya!');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('schoolCode');
+        window.location.href = 'index.html';
+    }).catch((error) => {
+        showCustomAlert('Ralat: ' + error.message);
+    });
+}
+
+function loadStudentProgress(studentId) {
+    database.ref(`schools/${currentSchoolCode}/users/${studentId}/progress/${currentMaterial}`).once('value', (snapshot) => {
+        const progress = snapshot.val();
+        if (progress) {
+            updateProgress(progress.evaluation);
+        } else {
+            resetProgress();
+        }
+    });
+}
+
+function loadStudentDifficultWords(studentId) {
+    const difficultWordsList = document.getElementById('difficult-words-list');
+    difficultWordsList.innerHTML = '';
+
+    database.ref(`schools/${currentSchoolCode}/users/${studentId}/difficultWords/${currentMaterial}`).once('value', (snapshot) => {
+        snapshot.forEach((childSnapshot) => {
+            const word = childSnapshot.val();
+            addDifficultWord(word);
+        });
+    });
+}
+
+function refreshStudentList() {
+    if (currentRole === 'teacher') {
+        loadStudentList();
+    }
+}
+
+function handleConnectionState() {
+    const connectedRef = database.ref('.info/connected');
+    connectedRef.on('value', (snap) => {
+        if (snap.val() === true) {
+            console.log('Connected to Firebase');
+        } else {
+            console.log('Disconnected from Firebase');
+            showCustomAlert('Sambungan terputus. Menyambung semula...');
+        }
+    });
+}
+
+// Initialize the application when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    loadMaterials();
+    updateChartMaterial();
+
+    // Add refresh button for student list if user is a teacher
+    if (currentRole === 'teacher') {
+        const refreshBtn = document.createElement('button');
+        refreshBtn.textContent = 'Muat Semula Senarai Pelajar';
+        refreshBtn.onclick = refreshStudentList;
+        const studentListContainer = document.getElementById('student-list').parentNode;
+        studentListContainer.insertBefore(refreshBtn, studentListContainer.firstChild);
+    }
+});
+
+// Error handling
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('An error occurred:', error);
+    showCustomAlert('Ralat telah berlaku. Sila cuba lagi.');
+    return true;
+};
+
+// Firebase Realtime Database error handling
+database.ref('.info/connected').on('value', function(snap) {
+    if (snap.val() === true) {
+        console.log('connected');
+    } else {
+        console.log('not connected');
+        showCustomAlert('Sambungan terputus. Sila periksa sambungan internet anda.');
+    }
+});
+
+// Call this function to start monitoring connection state
+handleConnectionState();
     </script>
 </body>
 </html>
